@@ -1,0 +1,58 @@
+#!/bin/bash
+ANYCONNECT="$(pass show networking/anyconnect/workplace)"
+USER="$(echo "${ANYCONNECT}" | grep user | tr -d "[:space:]" | awk -F ':' '{print $2}')"
+PASS="$(echo "${ANYCONNECT}" | head -n 1)"
+SERVERCERT="$(echo "${ANYCONNECT}" | grep servercert | tr -d "[:space:]" | awk -F ':' '{print $2}')"
+SERVERGATE="$(echo "${ANYCONNECT}" | grep gate | tr -d "[:space:]" | awk -F ':' '{print $2}')"
+
+RDP="$(pass show networking/rdp/workplace)"
+INTERNALIP="$(echo "${RDP}" | grep server | tr -d "[:space:]" | awk -F ':' '{print $2}')"
+F_PID="/tmp/openconnect.pid"
+
+GATE_PROG="/usr/sbin/openconnect"
+
+if [[ -z "$(pgrep openconnect)" ]];then
+    echo "${PASS}" | sudo "${GATE_PROG}" \
+                          --servercert pin-sha256:"${SERVERCERT}" \
+                          --user="${USER}" \
+                          "${SERVERGATE}" \
+                          --background \
+                          --passwd-on-stdin
+fi
+
+sleep 2;
+
+xfreerdp \
+    /g:"$(hostname -I)" \
+    /gum:detect \
+    /u:"${USER}" \
+    /p:"${PASS}" \
+    /v:"${INTERNALIP}" \
+    /multimon \
+    /monitors:0,1 \
+    /f \
+    /floatbar:sticky:off,default:hidden,show:fullscreen \
+    +clipboard \
+    /grab-keyboard \
+    /kbd:us \
+    /size:1680x1050 \
+    /sound:sys:pulse,dev:08:00.3,rate:96000
+
+# NO GATEWAY FEATURE!!!
+# ref. https://github.com/rdesktop/rdesktop/issues/38
+#rdesktop \
+#    -u "${USER}" \
+#    -p "${PASS}" \
+#    -f \
+#    -r sound:local \
+#    "${INTERNALIP}"
+
+unset ANYCONNECT
+unset USER
+unset PASS
+unset SERVERCERT
+unset SERVERGATE
+unset SERVER
+
+unset RDP
+unset INTERNALIP
