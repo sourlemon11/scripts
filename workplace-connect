@@ -9,15 +9,20 @@ RDP="$(pass show networking/rdp/workplace)"
 INTERNALIP="$(echo "${RDP}" | grep server | tr -d "[:space:]" | awk -F ':' '{print $2}')"
 F_PID="/tmp/openconnect.pid"
 
-GATE_PROG="/usr/sbin/openconnect"
+GATE_PROG="/usr/bin/openfortivpn"
 
-if [[ -z "$(pgrep openconnect)" ]];then
-    echo "${PASS}" | sudo "${GATE_PROG}" \
-                          --servercert pin-sha256:"${SERVERCERT}" \
-                          --user="${USER}" \
-                          "${SERVERGATE}" \
-                          --background \
-                          --passwd-on-stdin
+if [[ -z "$(pgrep $(echo ${GATE_PROG} | sed 's/\/usr\/.*bin\///'))" ]];then
+    case "$(pgrep $(echo ${GATE_PROG} | sed 's/\/usr\/.*bin\///'))" in
+        "openfortivpn") sudo "${GATE_PROG}" \
+                          -c "${HOME}"/.local/etc/openfortivpn/config &;;
+        "openconnect") echo "${PASS}" | sudo "${GATE_PROG}" \
+                            --servercert pin-sha256:"${SERVERCERT}" \
+                            --user="${USER}" \
+                            "${SERVERGATE}" \
+                            --background \
+                            --passwd-on-stdin \
+                            --servercert pin-sha256:"${SERVERCERT}";;
+    esac
 fi
 
 sleep 10;
@@ -28,20 +33,20 @@ xfreerdp \
     /u:"${USER}" \
     /p:"${PASS}" \
     /v:"${INTERNALIP}" \
-    /multimon \
+    /multimon:force \
     /monitors:0,1 \
     /f \
     /floatbar:sticky:off,default:hidden,show:fullscreen \
     +clipboard \
     /grab-keyboard \
-    /kbd:us \
-    /size:1680x1050 \
-    /sound:sys:pulse,dev:08:00.3,rate:96000
+    /kbd:0x00000409 \
+    /size:1680x1050
+    # /sound:sys:pulse,dev:08:00.3,rate:96000
 
 # NO GATEWAY FEATURE!!!
 # ref. https://github.com/rdesktop/rdesktop/issues/38
 #rdesktop \
-#    -u "${USER}" \
+#    -u "${USERGATE}" \
 #    -p "${PASS}" \
 #    -f \
 #    -r sound:local \
